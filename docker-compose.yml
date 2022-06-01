@@ -12,3 +12,4 @@ services:
     #  options:  
     #    loki-url: ${LOKI_URL} 
     #    labels: container_name,host
+ 
