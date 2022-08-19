@@ -50,8 +50,12 @@ def process_message_content(message):
     else:
         
         headers = { "Authorization" : "Bearer " + TOKEN } if TOKEN else {}
-
-        resp = requests.get(message["baseUrl"] + message["relPath"], headers = headers)
+        # ensure compatibility with old/new format
+        if "links" in message:
+            data_url = message["links"][0]["href"]
+        else: 
+            data_url = message["baseUrl"] + message["relPath"]
+        resp = requests.get(data_url, headers = headers)
         resp.raise_for_status()
         content = resp.content
         
