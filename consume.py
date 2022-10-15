@@ -72,16 +72,20 @@ def parse_mqp_message(message,topic):
 
     logging.debug( "MQP message: {}".format(message)) 
     
-    validate(instance=message, schema=schema) # check if the message structure is valid
+    #validate(instance=message, schema=schema) # check if the message structure is valid
     # we only support base64 encoding and sha512 checksum at this point
     if "content" in message and not message["content"]["encoding"] == "base64":
         raise Exception("message encoding not supported")
     if not message["integrity"]["method"] == "sha512":
         raise Exception("message integrity not supported")
         
-    path, filename = os.path.split(message["relPath"])
-    
-    if ONLY_BUFR and not filename.endswith(".bufr4"):
+    data_url = ""
+    if "links" in message:
+            data_url = message["links"][0]["href"]
+    else: 
+        data_url = message["baseUrl"] + message["relPath"]
+
+    if ONLY_BUFR and not data_url.endswith(".bufr4"):
         return False
         
     content = process_message_content(message)
