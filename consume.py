@@ -95,13 +95,23 @@ def parse_mqp_message(message,topic):
     content = process_message_content(message)
         
     # check message length and checksum. Only sha512 supported at the moment
+    len_content = 0
+    if "size" in message:
+        len_content = message["size"]
+    elif "length" in message ["properties"]["content"]:
+        len_content = message["size"]
+    if len(content) != len_content:
+        raise Exception("integrity issue. Message length expected {} got {}".format(len(content),len_content))
+    checksum = ""
+    if "integrity" in message:
+        checksum = message["integrity"]["value"]
+    elif "value" in message ["properties"]["integrity"]:
+        checksum = message["properties"]["integrity"]["value"]
     content_hash = base64.b64encode( hashlib.sha512(content).digest() ).decode("utf8")
-    if len(content) != message["size"]:
-        raise Exception("integrity issue. Message length expected {} got {}".format(len(content),message["size"]))
-    if content_hash != message["integrity"]["value"]:
+    if content_hash != checksum:
         logging.warning("checksum problem. Check old style encoding")
-        if hashlib.sha512(content).hexdigest() != message["integrity"]["value"]:
-            raise Exception("integrity issue. Expected checksum {} got {}".format(content_hash,message["integrity"]["value"]))
+        if hashlib.sha512(content).hexdigest() != checksum:
+            raise Exception("integrity issue. Expected checksum {} got {}".format(content_hash,checksum))
 
     topic_dir = os.path.join( out_dir , topic.replace(".","/") )
     
