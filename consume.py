@@ -168,7 +168,7 @@ def setup_amqp(url):
     
 def sub_connect(client, userdata, flags, rc, properties=None):
     logging.info(f"on connection to subscribe: {mqtt.connack_string(rc)}")
-    for s in ["xpublic/#"]:
+    for s in ["origin/#"]:
         client.subscribe(s, qos=1)
         
 def sub_message_content(client, userdata, msg):
