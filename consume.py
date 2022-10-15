@@ -56,7 +56,7 @@ def process_message_content(message):
             data_url = message["links"][0]["href"]
         else: 
             data_url = message["baseUrl"] + message["relPath"]
-        resp = requests.get(data_url, headers = headers)
+        resp = requests.get(data_url, headers = headers, verify=False)
         resp.raise_for_status()
         content = resp.content
         
