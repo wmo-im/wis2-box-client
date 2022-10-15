@@ -76,12 +76,16 @@ def parse_mqp_message(message,topic):
     # we only support base64 encoding and sha512 checksum at this point
     if "content" in message and not message["content"]["encoding"] == "base64":
         raise Exception("message encoding not supported")
-    if not message["integrity"]["method"] == "sha512":
-        raise Exception("message integrity not supported")
-        
+    if "properties" in message:
+        if message["properties"]["integrity"]["method"] != "sha512":
+            raise Exception("message integrity not supported")
+    else:
+        if message["integrity"]["method"] != "sha512":
+            raise Exception("message integrity not supported")
+
     data_url = ""
     if "links" in message:
-            data_url = message["links"][0]["href"]
+        data_url = message["links"][0]["href"]
     else: 
         data_url = message["baseUrl"] + message["relPath"]
 
