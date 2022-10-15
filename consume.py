@@ -114,7 +114,7 @@ def parse_mqp_message(message,topic):
             raise Exception("integrity issue. Expected checksum {} got {}".format(content_hash,checksum))
 
     topic_dir = os.path.join( out_dir , topic.replace(".","/") )
-    
+    filename = data_url.split('/')[-1]
     os.makedirs( topic_dir , exist_ok=True )
     out_file = os.path.join(topic_dir,filename)
     with open( out_file , "wb" ) as fp:
