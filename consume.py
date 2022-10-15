@@ -40,8 +40,8 @@ else:
 routing_key = os.environ.get('ROUTING_KEY',"mw.#") # topic to subscribe to
 out_dir = r"./out" # output directory. Subdirectories corresponding to the topic structure will be created, if needed.
 
-# the JSON grammar of the message structure
-schema = json.load(open("message-schema.json"))
+# the JSON grammar of the message structure, need a new message-schema as format has changed
+#schema = json.load(open("message-schema.json"))
 
 def process_message_content(message):
     """ either download message or obtain it directly from the message structure"""
@@ -87,11 +87,11 @@ def parse_mqp_message(message,topic):
         
     # check message length and checksum. Only sha512 supported at the moment
     content_hash = base64.b64encode( hashlib.sha512(content).digest() ).decode("utf8")
-    if not len(content) == message["size"]:
+    if len(content) != message["size"]:
         raise Exception("integrity issue. Message length expected {} got {}".format(len(content),message["size"]))
-    if not content_hash == message["integrity"]["value"]:
+    if content_hash != message["integrity"]["value"]:
         logging.warning("checksum problem. Check old style encoding")
-        if not hashlib.sha512(content).hexdigest() == message["integrity"]["value"]:
+        if hashlib.sha512(content).hexdigest() != message["integrity"]["value"]:
             raise Exception("integrity issue. Expected checksum {} got {}".format(content_hash,message["integrity"]["value"]))
 
     topic_dir = os.path.join( out_dir , topic.replace(".","/") )
