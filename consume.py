@@ -9,6 +9,7 @@ import logging
 import random
 import re
 
+from urllib.parse import urlparse
 
 from jsonschema import validate
 
@@ -182,10 +183,17 @@ def sub_message_content(client, userdata, msg):
 def parse_connection_string(url):
     # amqps://leesvecc:6af6XRjOxbINH89YTCoD9wz8f2LDT_hZ@cow.rmq2.cloudamqp.com/leesvecc
 
-    m = re.match("(?P<schema>\w+)://(?P<user>\w+):(?P<pass>\w+)@(?P<host>[.\w]+):(?P<port>\d+)", url)
-    
-    config = m.groupdict()
-    
+    # this does not work if the passwords contains special characters !!
+    #m = re.match("(?P<schema>\w+)://(?P<user>\w+):(?P<pass>\w+)@(?P<host>[.\w]+):(?P<port>\d+)", url)
+    broker_url = urlparse(url)
+
+    config = {
+        'schema' : broker_url.scheme,
+        'user' : broker_url.username,
+        'pass' : broker_url.password,
+        'host' : broker_url.hostname,
+        'port' : broker_url.port
+    }
     #logging.debug(f"url match {config}")
     
     return config
