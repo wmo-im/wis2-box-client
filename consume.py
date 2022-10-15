@@ -15,7 +15,7 @@ from jsonschema import validate
 
 #logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s')
 
-DEBUG = os.getenv("DEBUG", 'True').lower() in ('true', '1', 't')
+DEBUG = os.getenv("DEBUG", 'False').lower() in ('true', '1', 't')
 ONLY_BUFR = os.getenv("ONLY_BUFR", 'True').lower() in ('true', '1', 't')
 TOKEN = os.environ.get('AUTH_TOKEN',None)
 
@@ -209,7 +209,17 @@ def setup_mqtt(url):
         client.on_connect = sub_connect
         client.on_message = sub_message_content
         client.username_pw_set(config["user"], config["pass"])
-        client.connect(config["host"])
+        
+        _port = config["port"]
+        if _port is None:
+            if config["schema"] == 'mqtts':
+                _port = 8883
+            else:
+                _port = 1883
+        if config["schema"]== 'mqtts':
+            client.tls_set(tls_version=2)
+        logging.info(f'connect to host={config["host"]} at port={_port}')
+        client.connect(config["host"],_port)
 
         # this reconnects, no need to handle disconnects
         client.loop_forever()
