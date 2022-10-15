@@ -98,8 +98,8 @@ def parse_mqp_message(message,topic):
     len_content = 0
     if "size" in message:
         len_content = message["size"]
-    elif "length" in message ["properties"]["content"]:
-        len_content = message["size"]
+    elif "length" in message["properties"]["content"]:
+        len_content = message["properties"]["content"]["length"]
     if len(content) != len_content:
         raise Exception("integrity issue. Message length expected {} got {}".format(len(content),len_content))
     checksum = ""
