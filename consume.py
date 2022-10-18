@@ -9,12 +9,13 @@ import logging
 import random
 import re
 
+from urllib.parse import urlparse
 
 from jsonschema import validate
 
 #logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s')
 
-DEBUG = os.getenv("DEBUG", 'True').lower() in ('true', '1', 't')
+DEBUG = os.getenv("DEBUG", 'False').lower() in ('true', '1', 't')
 ONLY_BUFR = os.getenv("ONLY_BUFR", 'True').lower() in ('true', '1', 't')
 TOKEN = os.environ.get('AUTH_TOKEN',None)
 
@@ -40,8 +41,8 @@ else:
 routing_key = os.environ.get('ROUTING_KEY',"mw.#") # topic to subscribe to
 out_dir = r"./out" # output directory. Subdirectories corresponding to the topic structure will be created, if needed.
 
-# the JSON grammar of the message structure
-schema = json.load(open("message-schema.json"))
+# the JSON grammar of the message structure, need a new message-schema as format has changed
+#schema = json.load(open("message-schema.json"))
 
 def process_message_content(message):
     """ either download message or obtain it directly from the message structure"""
@@ -55,7 +56,7 @@ def process_message_content(message):
             data_url = message["links"][0]["href"]
         else: 
             data_url = message["baseUrl"] + message["relPath"]
-        resp = requests.get(data_url, headers = headers)
+        resp = requests.get(data_url, headers = headers, verify=False)
         resp.raise_for_status()
         content = resp.content
         
@@ -71,31 +72,49 @@ def parse_mqp_message(message,topic):
 
     logging.debug( "MQP message: {}".format(message)) 
     
-    validate(instance=message, schema=schema) # check if the message structure is valid
+    #validate(instance=message, schema=schema) # check if the message structure is valid
     # we only support base64 encoding and sha512 checksum at this point
     if "content" in message and not message["content"]["encoding"] == "base64":
         raise Exception("message encoding not supported")
-    if not message["integrity"]["method"] == "sha512":
-        raise Exception("message integrity not supported")
-        
-    path, filename = os.path.split(message["relPath"])
-    
-    if ONLY_BUFR and not filename.endswith(".bufr4"):
+    if "properties" in message:
+        if message["properties"]["integrity"]["method"] != "sha512":
+            raise Exception("message integrity not supported")
+    else:
+        if message["integrity"]["method"] != "sha512":
+            raise Exception("message integrity not supported")
+
+    data_url = ""
+    if "links" in message:
+        data_url = message["links"][0]["href"]
+    else: 
+        data_url = message["baseUrl"] + message["relPath"]
+
+    if ONLY_BUFR and not data_url.endswith(".bufr4"):
         return False
         
     content = process_message_content(message)
         
     # check message length and checksum. Only sha512 supported at the moment
+    len_content = 0
+    if "size" in message:
+        len_content = message["size"]
+    elif "length" in message["properties"]["content"]:
+        len_content = message["properties"]["content"]["length"]
+    if len(content) != len_content:
+        raise Exception("integrity issue. Message length expected {} got {}".format(len(content),len_content))
+    checksum = ""
+    if "integrity" in message:
+        checksum = message["integrity"]["value"]
+    elif "value" in message ["properties"]["integrity"]:
+        checksum = message["properties"]["integrity"]["value"]
     content_hash = base64.b64encode( hashlib.sha512(content).digest() ).decode("utf8")
-    if not len(content) == message["size"]:
-        raise Exception("integrity issue. Message length expected {} got {}".format(len(content),message["size"]))
-    if not content_hash == message["integrity"]["value"]:
+    if content_hash != checksum:
         logging.warning("checksum problem. Check old style encoding")
-        if not hashlib.sha512(content).hexdigest() == message["integrity"]["value"]:
-            raise Exception("integrity issue. Expected checksum {} got {}".format(content_hash,message["integrity"]["value"]))
+        if hashlib.sha512(content).hexdigest() != checksum:
+            raise Exception("integrity issue. Expected checksum {} got {}".format(content_hash,checksum))
 
     topic_dir = os.path.join( out_dir , topic.replace(".","/") )
-    
+    filename = data_url.split('/')[-1]
     os.makedirs( topic_dir , exist_ok=True )
     out_file = os.path.join(topic_dir,filename)
     with open( out_file , "wb" ) as fp:
@@ -167,7 +186,7 @@ def setup_amqp(url):
     
 def sub_connect(client, userdata, flags, rc, properties=None):
     logging.info(f"on connection to subscribe: {mqtt.connack_string(rc)}")
-    for s in ["xpublic/#"]:
+    for s in ["origin/#"]:
         client.subscribe(s, qos=1)
         
 def sub_message_content(client, userdata, msg):
@@ -182,10 +201,17 @@ def sub_message_content(client, userdata, msg):
 def parse_connection_string(url):
     # amqps://leesvecc:6af6XRjOxbINH89YTCoD9wz8f2LDT_hZ@cow.rmq2.cloudamqp.com/leesvecc
 
-    m = re.match("(?P<schema>\w+)://(?P<user>\w+):(?P<pass>\w+)@(?P<host>[.\w]+):(?P<port>\d+)", url)
-    
-    config = m.groupdict()
-    
+    # this does not work if the passwords contains special characters !!
+    #m = re.match("(?P<schema>\w+)://(?P<user>\w+):(?P<pass>\w+)@(?P<host>[.\w]+):(?P<port>\d+)", url)
+    broker_url = urlparse(url)
+
+    config = {
+        'schema' : broker_url.scheme,
+        'user' : broker_url.username,
+        'pass' : broker_url.password,
+        'host' : broker_url.hostname,
+        'port' : broker_url.port
+    }
     #logging.debug(f"url match {config}")
     
     return config
@@ -201,7 +227,17 @@ def setup_mqtt(url):
         client.on_connect = sub_connect
         client.on_message = sub_message_content
         client.username_pw_set(config["user"], config["pass"])
-        client.connect(config["host"])
+        
+        _port = config["port"]
+        if _port is None:
+            if config["schema"] == 'mqtts':
+                _port = 8883
+            else:
+                _port = 1883
+        if config["schema"]== 'mqtts':
+            client.tls_set(tls_version=2)
+        logging.info(f'connect to host={config["host"]} at port={_port}')
+        client.connect(config["host"],_port)
 
         # this reconnects, no need to handle disconnects
         client.loop_forever()
