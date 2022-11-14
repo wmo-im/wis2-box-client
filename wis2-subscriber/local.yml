@@ -1,8 +1,8 @@
-broker: mqtt://localhost:1883
+broker: WIS2BOX_BROKER_PUBLIC
 
 # list of topics to subscribe to
 topics:
-    - 'origin/a/wis2/mwi/malawi_wmo_demo/#'
+    - 'origin/a/wis2/#'
 
 # whether to verify data
 verify_data: true
