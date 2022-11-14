@@ -1,0 +1,11 @@
+broker: mqtt://localhost:1883
+
+# list of topics to subscribe to
+topics:
+    - 'origin/a/wis2/mwi/malawi_wmo_demo/#'
+
+# whether to verify data
+verify_data: true
+
+# whether to validate message against schema
+validate_message: false

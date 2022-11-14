@@ -1,4 +1,0 @@
-pika==1.2.0
-requests
-jsonschema
-paho-mqtt

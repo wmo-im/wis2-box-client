@@ -1,15 +1,4 @@
-version: "3.3"
 services:
-  mqpconsumer:
-    build: .
-    env_file: env_file
-
-    stdin_open: true
-    tty: true
-
-    #logging:
-    #  driver: ${LOG_DRIVER}
-    #  options:  
-    #    loki-url: ${LOKI_URL} 
-    #    labels: container_name,host
- 
+  wis2-subscriber:
+    container_name: wis2-subscriber
+    build: ./wis2-subscriber
