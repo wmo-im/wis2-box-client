@@ -1,6 +1,6 @@
 # wis2box-client
 
-Code demonstrating how to download data from a wis2box using pywis-pubsub.
+Generic client to subscribe to wis2box.
 
 ## How to use
 
